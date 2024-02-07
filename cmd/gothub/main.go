@@ -7,21 +7,39 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/elimity-com/backend-intern-exercise/internal"
 )
 
-var args = os.Args
+var (
+	args          = os.Args
+	tokenFilePath string
+)
 
 var name = makeName()
 
 func log(message string) {
 	fmt.Fprintf(os.Stderr, "%s: %s\n", name, message)
 }
+func init() {
+	flag.StringVar(&tokenFilePath, "token-file", "", "path to the file containing the GitHub personal access token")
+	flag.Parse()
+}
 
 func main() {
-	if err := run(); err != nil {
+	// Read token from file if provided
+	var token string
+	if tokenFilePath != "" {
+		t, err := readTokenFromFile(tokenFilePath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading token file: %v\n", err)
+			os.Exit(1)
+		}
+		token = t
+	}
+	if err := run(token); err != nil {
 		message := err.Error()
 		log(message)
 		if _, ok := err.(usageError); ok {
@@ -29,6 +47,15 @@ func main() {
 			log(message)
 		}
 	}
+}
+
+func readTokenFromFile(filePath string) (string, error) {
+	token, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+	// Trim any leading/trailing white spaces and newlines
+	return strings.TrimSpace(string(token)), nil
 }
 
 func makeName() string {
@@ -51,7 +78,7 @@ func parseInterval() (time.Duration, error) {
 	return interval, nil
 }
 
-func run() error {
+func run(token string) error {
 	if nbArgs := len(args); nbArgs < 2 {
 		return usageError{message: "missing command"}
 	}
