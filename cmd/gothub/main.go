@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 var (
 	args          = os.Args
 	tokenFilePath string
+	useToken      bool
 )
 
 var name = makeName()
@@ -25,28 +27,45 @@ func log(message string) {
 }
 func init() {
 	flag.StringVar(&tokenFilePath, "token-file", "", "path to the file containing the GitHub personal access token")
+	flag.BoolVar(&useToken, "use-token", false, "set to true to use GitHub personal access token")
 	flag.Parse()
 }
 
 func main() {
-	// Read token from file if provided
+	// Read token from file if provided and useToken flag is set
 	var token string
-	if tokenFilePath != "" {
-		t, err := readTokenFromFile(tokenFilePath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading token file: %v\n", err)
+	if useToken {
+		if tokenFilePath != "" {
+			t, err := readTokenFromFile(tokenFilePath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error reading token file: %v\n", err)
+				os.Exit(1)
+			}
+			token = t
+		} else {
+			fmt.Fprintln(os.Stderr, "Error: GitHub personal access token file path is required when -use-token is set to true")
 			os.Exit(1)
 		}
-		token = t
 	}
-	if err := run(token); err != nil {
-		message := err.Error()
-		log(message)
-		if _, ok := err.(usageError); ok {
-			message := fmt.Sprintf("run '%s help' for usage information", name)
-			log(message)
+
+	// Create a cancellation context
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel() // Ensure cancellation of context when main exits
+
+	// Run the tracking function in a separate goroutine
+	go func() {
+		interval, err := parseInterval()
+		if err != nil {
+			log(fmt.Sprintf("failed parsing interval: %v", err))
+			return
 		}
-	}
+		if err := run(ctx, interval, token); err != nil {
+			log(fmt.Sprintf("failed running: %v", err))
+		}
+	}()
+
+	// Print table output
+	printTableOutput(ctx)
 }
 
 func readTokenFromFile(filePath string) (string, error) {
@@ -77,8 +96,25 @@ func parseInterval() (time.Duration, error) {
 	}
 	return interval, nil
 }
+func printTableOutput(ctx context.Context) {
+	// Print table headers
+	fmt.Println("Owner\t| Name\t| Updated at (UTC)\t| Star count")
+	// Loop until context is cancelled
+	for {
+		select {
+		case <-ctx.Done():
+			// Exit loop if context is cancelled
+			return
+		default:
+			// Fetch repository details and print in table format
+			// You can implement this part based on your requirement and the Track function output
+			// For demonstration, I'm just sleeping here
+			time.Sleep(5 * time.Second)
+		}
+	}
+}
 
-func run(token string) error {
+func run(ctx context.Context, interval time.Duration, token string) error {
 	if nbArgs := len(args); nbArgs < 2 {
 		return usageError{message: "missing command"}
 	}
@@ -107,7 +143,7 @@ Options:
 			message := fmt.Sprintf("failed parsing interval: %v", err)
 			return usageError{message: message}
 		}
-		if err := internal.Track(interval); err != nil {
+		if err := internal.Track(ctx, interval, token); err != nil {
 			return fmt.Errorf("failed tracking: %v", err)
 		}
 		return nil
