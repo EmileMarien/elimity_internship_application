@@ -57,7 +57,7 @@ func Track(ctx context.Context, interval time.Duration, useToken bool, token str
 
 */
 
-func Track(ctx context.Context, interval time.Duration, useToken bool, token string) error {
+func Track(ctx context.Context, interval time.Duration, useToken bool, token string, minStars int) error {
 	for ; ; <-time.Tick(interval) {
 		// Create a GitHub client without authentication
 		client := github.NewClient(nil)
@@ -72,10 +72,18 @@ func Track(ctx context.Context, interval time.Duration, useToken bool, token str
 				client = github.NewClient(tc)
 			}
 		*/
-		con := context.Background()
+		//con := context.Background()
+
 		listOptions := github.ListOptions{PerPage: 3}
 		searchOptions := &github.SearchOptions{ListOptions: listOptions, Sort: "updated"}
-		result, _, err := client.Search.Repositories(con, "is:public", searchOptions)
+		var query string
+		if minStars > 0 {
+			query = fmt.Sprintf("is:public stars:>=%d", minStars)
+		} else {
+			query = "is:public"
+		}
+
+		result, _, err := client.Search.Repositories(ctx, query, searchOptions)
 		if err != nil {
 			return err
 		}
