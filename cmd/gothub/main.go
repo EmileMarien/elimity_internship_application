@@ -24,48 +24,36 @@ var name = makeName()
 
 func log(message string) {
 	fmt.Fprintf(os.Stderr, "%s: %s\n", name, message)
+	os.Exit(1)
 }
 func init() {
 	flag.StringVar(&tokenFilePath, "token-file", "", "path to the file containing the GitHub personal access token")
-	flag.BoolVar(&useToken, "use-token", false, "set to true to use GitHub personal access token")
+	//flag.BoolVar(&useToken, "use-token", false, "set to true to use GitHub personal access token")
 	flag.Parse()
 }
 
 func main() {
-	// Read token from file if provided and useToken flag is set
-	var token string
-	if useToken {
-		if tokenFilePath != "" {
-			t, err := readTokenFromFile(tokenFilePath)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error reading token file: %v\n", err)
-				os.Exit(1)
-			}
-			token = t
-		} else {
-			fmt.Fprintln(os.Stderr, "Error: GitHub personal access token file path is required when -use-token is set to true")
-			os.Exit(1)
-		}
-	}
-
-	// Create a cancellation context
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel() // Ensure cancellation of context when main exits
+	// Set up context and other variables as needed
+	ctx := context.Background()
+	interval, useToken, token := parseArgs()
 
 	// Run the tracking function in a separate goroutine
 	go func() {
-		interval, err := parseInterval()
-		if err != nil {
-			log(fmt.Sprintf("failed parsing interval: %v", err))
-			return
-		}
-		if err := run(ctx, interval, token); err != nil {
-			log(fmt.Sprintf("failed running: %v", err))
+		if err := run(ctx, interval, useToken, token); err != nil {
+			log(fmt.Sprintf("Error: %v", err))
 		}
 	}()
 
 	// Print table output
 	printTableOutput(ctx)
+}
+func parseArgs() (time.Duration, bool, string) {
+	var interval time.Duration
+	flag.DurationVar(&interval, "interval", 10*time.Second, "repository update interval")
+	flag.BoolVar(&useToken, "use-token", false, "set to true to use GitHub personal access token")
+	flag.StringVar(&tokenFilePath, "token", "", "GitHub personal access token")
+	flag.Parse()
+	return interval, useToken, tokenFilePath
 }
 
 func readTokenFromFile(filePath string) (string, error) {
@@ -114,7 +102,7 @@ func printTableOutput(ctx context.Context) {
 	}
 }
 
-func run(ctx context.Context, interval time.Duration, token string) error {
+func run(ctx context.Context, interval time.Duration, useToken bool, token string) error {
 	if nbArgs := len(args); nbArgs < 2 {
 		return usageError{message: "missing command"}
 	}
@@ -125,7 +113,7 @@ Simple CLI for tracking public GitHub repositories.
 
 Usage:
   %[1]s help
-  %[1]s track [-interval=<interval>]
+  %[1]s track [-interval=<interval>] [-use-token=<yes|no>]
 
 Commands:
   help  Show usage information
@@ -133,17 +121,23 @@ Commands:
 
 Options:
   -interval=<interval> Repository update interval, greater than zero [default: 10s]
+  -use-token=<yes|no>   Set to 'yes' to use GitHub personal access token, 'no' to run without token [default: no]
 `
 		fmt.Fprintf(os.Stdout, usage, name)
 		return nil
 
 	case "track":
+		if useToken {
+			if token == "" {
+				return errors.New("GitHub personal access token is required for tracking")
+			}
+		}
 		interval, err := parseInterval()
 		if err != nil {
 			message := fmt.Sprintf("failed parsing interval: %v", err)
 			return usageError{message: message}
 		}
-		if err := internal.Track(ctx, interval, token); err != nil {
+		if err := internal.Track(ctx, interval, useToken, tokenFilePath); err != nil {
 			return fmt.Errorf("failed tracking: %v", err)
 		}
 		return nil
