@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v33/github"
+	"golang.org/x/oauth2"
 )
 
 // Track tracks public GitHub repositories, continuously updating according to the given interval.
@@ -57,22 +58,22 @@ func Track(ctx context.Context, interval time.Duration, useToken bool, token str
 
 */
 
-func Track(ctx context.Context, interval time.Duration, useToken bool, token string, minStars int) error {
+func Track(ctx context.Context, interval time.Duration, token string, minStars int) error {
+	fmt.Printf("minStars: %d\n", minStars)
+	fmt.Printf("token: %s\n", token)
+	fmt.Printf("interval: %s\n", interval)
 	for ; ; <-time.Tick(interval) {
 		// Create a GitHub client without authentication
 		client := github.NewClient(nil)
-		/*
-			useToken=false
-			if useToken {
-				// Create a GitHub client with authentication using the provided token
-				ts := oauth2.StaticTokenSource(
-					&oauth2.Token{AccessToken: token},
-				)
-				tc := oauth2.NewClient(ctx, ts)
-				client = github.NewClient(tc)
-			}
-		*/
-		//con := context.Background()
+		if token != "" { // if token is not empty, overwrite client with authenticated client
+
+			// Create a GitHub client with authentication using the provided token
+			ts := oauth2.StaticTokenSource(
+				&oauth2.Token{AccessToken: token},
+			)
+			tc := oauth2.NewClient(ctx, ts)
+			client = github.NewClient(tc)
+		}
 
 		listOptions := github.ListOptions{PerPage: 3}
 		searchOptions := &github.SearchOptions{ListOptions: listOptions, Sort: "updated"}

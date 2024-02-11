@@ -15,44 +15,52 @@ import (
 )
 
 var (
-	args          = os.Args
-	tokenFilePath string
-	useToken      bool
-	minStars      int
+	args = os.Args
 )
 
 var name = makeName()
 
-func parseArgs() (time.Duration, bool, string, int, error) {
+func parseArgs() (time.Duration, string, int, error) {
 	// Create a new custom FlagSet
 	set := flag.NewFlagSet("", flag.ContinueOnError)
 
 	// Define flag variables
 	var interval time.Duration
-	var useToken bool
 	var tokenFilePath string
 	var minStars int
 
 	// Add flags to the custom FlagSet
 	set.DurationVar(&interval, "interval", 10*time.Second, "repository update interval")
-	set.BoolVar(&useToken, "use-token", false, "set to true to use GitHub personal access token")
-	set.StringVar(&tokenFilePath, "token", "", "GitHub personal access token")
+	set.StringVar(&tokenFilePath, "token-file", "", "GitHub personal access token")
 	set.IntVar(&minStars, "min-stars", 0, "minimum stars")
 
 	// Parse the flags
 	if err := set.Parse(os.Args[1:]); err != nil {
-		return 0, false, "", 0, fmt.Errorf("failed parsing flags: %v", err)
+		return 0, "", 0, fmt.Errorf("failed parsing flags: %v", err)
 	}
 
 	// Check if interval is a valid duration
 	if interval <= 0 {
-		return 0, false, "", 0, errors.New("invalid interval: must be greater than zero")
+		return 0, "", 0, errors.New("invalid interval: must be greater than zero")
 	}
 
 	// Return parsed values
-	return interval, useToken, tokenFilePath, minStars, nil
-}
-
+	return interval, tokenFilePath, minStars, nil
+} /*
+func parseInterval() (time.Duration, error) {
+	set := flag.NewFlagSet("", flag.ContinueOnError)
+	var interval time.Duration
+	set.DurationVar(&interval, "interval", 10*time.Second, "")
+	set.SetOutput(ioutil.Discard)
+	args := args[2:]
+	if err := set.Parse(args); err != nil {
+		return 0, errors.New("got invalid flags")
+	}
+	if interval <= 0 {
+		return 0, errors.New("got invalid interval")
+	}
+	return interval, nil
+}*/
 func log(message string) {
 	fmt.Fprintf(os.Stderr, "%s: %s\n", name, message)
 	os.Exit(1)
@@ -63,14 +71,18 @@ func main() {
 	ctx := context.Background()
 
 	// Parse command-line arguments
-	interval, useToken, tokenFilePath, minStars, err := parseArgs()
+	interval, tokenFilePath, minStars, err := parseArgs()
+	fmt.Printf("minStars: %d\n", minStars)
+	fmt.Printf("token: %s\n", tokenFilePath)
+	fmt.Printf("interval: %s\n", interval)
+
 	if err != nil {
 		log(fmt.Sprintf("Error parsing arguments: %v", err))
 		return
 	}
 	// Read token from file if needed
 	var token string
-	if useToken {
+	if tokenFilePath != "" { //Only read token from file if token file path is provided
 		token, err = readTokenFromFile(tokenFilePath)
 		if err != nil {
 			log(fmt.Sprintf("Error reading token from file: %v", err))
@@ -82,7 +94,7 @@ func main() {
 
 	// Run the tracking function in a separate goroutine
 	go func() {
-		if err := run(ctx, interval, useToken, token, minStars); err != nil {
+		if err := run(ctx, interval, token, minStars); err != nil {
 			log(fmt.Sprintf("Error: %v", err))
 		}
 	}()
@@ -123,7 +135,7 @@ func printTableOutput(ctx context.Context) {
 	}
 }
 
-func run(ctx context.Context, interval time.Duration, useToken bool, token string, minStars int) error {
+func run(ctx context.Context, interval time.Duration, tokenFilePath string, minStars int) error {
 	if nbArgs := len(args); nbArgs < 2 {
 		return usageError{message: "missing command"}
 	}
@@ -148,13 +160,8 @@ Options:
 		return nil
 
 	case "track":
-		if useToken {
-			if token == "" {
-				return errors.New("GitHub personal access token is required for tracking")
-			}
-		}
 
-		if err := internal.Track(ctx, interval, useToken, tokenFilePath, minStars); err != nil {
+		if err := internal.Track(ctx, interval, tokenFilePath, minStars); err != nil {
 			return fmt.Errorf("failed tracking: %v", err)
 		}
 		return nil
