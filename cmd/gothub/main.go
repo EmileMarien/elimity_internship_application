@@ -21,46 +21,24 @@ var (
 var name = makeName()
 
 func parseArgs() (time.Duration, string, int, error) {
-	// Create a new custom FlagSet
 	set := flag.NewFlagSet("", flag.ContinueOnError)
-
-	// Define flag variables
 	var interval time.Duration
-	var tokenFilePath string
 	var minStars int
+	var tokenFilePath string
 
-	// Add flags to the custom FlagSet
-	set.DurationVar(&interval, "interval", 10*time.Second, "repository update interval")
-	set.StringVar(&tokenFilePath, "token-file", "", "GitHub personal access token")
-	set.IntVar(&minStars, "min-stars", 0, "minimum stars")
-
-	// Parse the flags
-	if err := set.Parse(os.Args[1:]); err != nil {
-		return 0, "", 0, fmt.Errorf("failed parsing flags: %v", err)
-	}
-
-	// Check if interval is a valid duration
-	if interval <= 0 {
-		return 0, "", 0, errors.New("invalid interval: must be greater than zero")
-	}
-
-	// Return parsed values
-	return interval, tokenFilePath, minStars, nil
-} /*
-func parseInterval() (time.Duration, error) {
-	set := flag.NewFlagSet("", flag.ContinueOnError)
-	var interval time.Duration
 	set.DurationVar(&interval, "interval", 10*time.Second, "")
+	set.IntVar(&minStars, "min-stars", 0, "minimum stars")
+	set.StringVar(&tokenFilePath, "tokenFile", "", "GitHub personal access token")
 	set.SetOutput(ioutil.Discard)
 	args := args[2:]
 	if err := set.Parse(args); err != nil {
-		return 0, errors.New("got invalid flags")
+		return 0, "", 0, errors.New("got invalid flags")
 	}
 	if interval <= 0 {
-		return 0, errors.New("got invalid interval")
+		return 0, "", 0, errors.New("got invalid interval")
 	}
-	return interval, nil
-}*/
+	return interval, tokenFilePath, minStars, nil
+}
 func log(message string) {
 	fmt.Fprintf(os.Stderr, "%s: %s\n", name, message)
 	os.Exit(1)
@@ -72,15 +50,13 @@ func main() {
 
 	// Parse command-line arguments
 	interval, tokenFilePath, minStars, err := parseArgs()
-	fmt.Printf("minStars: %d\n", minStars)
-	fmt.Printf("token: %s\n", tokenFilePath)
-	fmt.Printf("interval: %s\n", interval)
 
 	if err != nil {
 		log(fmt.Sprintf("Error parsing arguments: %v", err))
 		return
 	}
 	// Read token from file if needed
+
 	var token string
 	if tokenFilePath != "" { //Only read token from file if token file path is provided
 		token, err = readTokenFromFile(tokenFilePath)
@@ -101,6 +77,7 @@ func main() {
 
 	// Print table output
 	printTableOutput(ctx)
+
 }
 
 func readTokenFromFile(filePath string) (string, error) {
@@ -146,7 +123,7 @@ Simple CLI for tracking public GitHub repositories.
 
 Usage:
   %[1]s help
-  %[1]s track [-interval=<interval>] [-use-token=<yes|no>]
+  %[1]s track [-interval=<interval>] [-min-stars=<min-stars>] [-token-file=<path/to/token>]
 
 Commands:
   help  Show usage information
@@ -154,8 +131,9 @@ Commands:
 
 Options:
   -interval=<interval> Repository update interval, greater than zero [default: 10s]
-  -use-token=<yes|no>   Set to 'yes' to use GitHub personal access token, 'no' to run without token [default: no]
-`
+  -min-stars=<stars>   Minimum number of stars required for a repository to be tracked [default: 0]
+  -token-file=<path>   File containing the GitHub personal access token [default: ""]`
+
 		fmt.Fprintf(os.Stdout, usage, name)
 		return nil
 
