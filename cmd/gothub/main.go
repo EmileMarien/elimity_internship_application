@@ -1,5 +1,6 @@
 package main
 
+///Users/emile/Documents/github_token_EmileMarien.rtf
 import (
 	"context"
 	"errors"
@@ -50,6 +51,9 @@ func main() {
 
 	// Parse command-line arguments
 	interval, tokenFilePath, minStars, err := parseArgs()
+	fmt.Fprintf(os.Stdout, "interval: %s\n", interval)
+	fmt.Fprintf(os.Stdout, "tokenFilePath: %s\n", tokenFilePath)
+	fmt.Fprintf(os.Stdout, "minStars: %d\n", minStars)
 
 	if err != nil {
 		log(fmt.Sprintf("Error parsing arguments: %v", err))
