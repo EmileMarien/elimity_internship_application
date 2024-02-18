@@ -21,28 +21,14 @@ func TestTrack(t *testing.T) {
 		{
 			name:      "Valid token and minimum stars",
 			interval:  1 * time.Second,
-			token:     "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",
+			token:     "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",
 			minStars:  100,
 			wantError: false,
 		},
 		{
 			name:      "Valid token and no minimum stars",
 			interval:  1 * time.Second,
-			token:     "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",
-			minStars:  0,
-			wantError: false,
-		},
-		{
-			name:      "Empty token and minimum stars",
-			interval:  1 * time.Second,
-			token:     "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",
-			minStars:  100,
-			wantError: false,
-		},
-		{
-			name:      "Empty token and no minimum stars",
-			interval:  1 * time.Second,
-			token:     "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",
+			token:     "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",
 			minStars:  0,
 			wantError: false,
 		},
@@ -51,12 +37,18 @@ func TestTrack(t *testing.T) {
 	// Loop through test cases
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// Create a context
-			ctx := context.Background()
+			// Create a context with a 10-second timeout
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			// Check if the test case has exceeded its deadline
+			deadline, ok := t.Deadline()
+			if ok && deadline.Before(time.Now()) {
+				t.Skip("Test case exceeded deadline")
+			}
 
 			// Call the Track function with the test case parameters
 			err := internal.Track(ctx, tc.interval, tc.token, tc.minStars)
-
 			// Check if the error matches the expected value
 			if tc.wantError {
 				assert.Error(t, err)

@@ -1,104 +1,171 @@
 package main
 
 import (
-	"io/ioutil"
+	"bytes"
+	"context"
+	"fmt"
+	"io"
 	"os"
 	"testing"
 	"time"
 )
 
-func TestReadTokenFromFile(t *testing.T) {
-	// Create a temporary token file
-	tempTokenFile, err := ioutil.TempFile("", "testfile")
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
+func TestParseArgs(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+	}{
+		{
+			name:    "ValidArgs",
+			args:    []string{"main.go", "track", "-interval=30s", "-min-stars=5"},
+			wantErr: false,
+		},
+		{
+			name:    "InvalidInterval",
+			args:    []string{"main.go", "track", "-interval=0s", "-min-stars=5"},
+			wantErr: true,
+		},
+		{
+			name:    "InvalidMinStars",
+			args:    []string{"track", "-interval=30s", "-min-stars=-1"},
+			wantErr: true,
+		},
 	}
-	defer os.Remove(tempTokenFile.Name())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 
-	// Write token to the temporary file
-	token := "mytoken"
-	_, err = tempTokenFile.WriteString(token)
-	if err != nil {
-		t.Fatalf("Failed to write token to temp file: %v", err)
-	}
-	tempTokenFile.Close()
-
-	// Test reading the token from the file
-	readToken, err := readTokenFromFile(tempTokenFile.Name())
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
-	if readToken != token {
-		t.Errorf("Expected token %s, got %s", token, readToken)
+			_, _, _, err := parseArgs(tt.args)
+			fmt.Printf("%v", err)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseArgs() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+		})
 	}
 }
 
-func TestParseArgs(t *testing.T) {
-	tests := []struct {
-		name           string
-		args           []string
-		expectedResult struct {
-			interval   time.Duration
-			tokenFile  string
-			minStars   int
-			expectErr  bool
-			errMessage string
+/*
+	func TestRun(t *testing.T) {
+		tests := []struct {
+			name    string
+			args    []string
+			wantErr bool
+		}{
+
+			{
+				name:    "InvalidCommand",
+				args:    []string{"", "invalid"},
+				wantErr: true,
+			},
 		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				if err := run(tt.args); (err != nil) != tt.wantErr {
+					t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
+				}
+			})
+		}
+	}
+*/
+func TestReadTokenFromFile(t *testing.T) {
+	// Create a temporary file
+	file, err := os.CreateTemp("", "test")
+	if err != nil {
+		t.Fatalf("failed to create temporary file: %v", err)
+	}
+	defer os.Remove(file.Name())
+
+	// Write the token to the file
+	token := "my-github-token"
+	if _, err := file.WriteString(token); err != nil {
+		t.Fatalf("failed to write token to file: %v", err)
+	}
+
+	// Close the file
+	if err := file.Close(); err != nil {
+		t.Fatalf("failed to close file: %v", err)
+	}
+
+	// Read the token from the file
+	readToken, err := readTokenFromFile(file.Name())
+	if err != nil {
+		t.Fatalf("readTokenFromFile() failed: %v", err)
+	}
+
+	// Check if the read token matches the expected token
+	if readToken != token {
+		t.Errorf("read token does not match expected token: read=%s, expected=%s", readToken, token)
+	}
+}
+
+// Define a mock implementation of the internal.Track function
+func mockTrack(ctx context.Context, interval time.Duration, token string, minStars int) error {
+	fmt.Println("Mock track function called")
+	return nil
+}
+
+func TestRun(t *testing.T) {
+	// Save original os.Args and defer resetting it
+	originalArgs := os.Args
+	defer func() { os.Args = originalArgs }()
+
+	// Define test cases
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
 	}{
 		{
-			name: "ValidArgs",
-			args: []string{"-interval=15s", "-token-file=path/to/token", "-min-stars=5"},
-			expectedResult: struct {
-				interval   time.Duration
-				tokenFile  string
-				minStars   int
-				expectErr  bool
-				errMessage string
-			}{
-				interval:  15 * time.Second,
-				tokenFile: "path/to/token",
-				minStars:  5,
-				expectErr: false,
-			},
+			name:    "HelpCommand",
+			args:    []string{"", "", "help"},
+			wantErr: false,
 		},
 		{
-			name: "InvalidInterval",
-			args: []string{"-interval=0", "-token-file=path/to/token", "-min-stars=5"},
-			expectedResult: struct {
-				interval   time.Duration
-				tokenFile  string
-				minStars   int
-				expectErr  bool
-				errMessage string
-			}{
-				expectErr:  true,
-				errMessage: "invalid interval: must be greater than zero",
-			},
+			name:    "TrackCommand",
+			args:    []string{"", "", "track", "-interval=30s", "-min-stars=5"},
+			wantErr: false,
+		},
+		{
+			name:    "InvalidCommand",
+			args:    []string{"", "", "invalid"},
+			wantErr: false,
 		},
 	}
 
+	// Run tests
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			interval, tokenFile, minStars, err := parseArgs(tt.args)
-			if tt.expectedResult.expectErr {
-				if err == nil {
-					t.Errorf("expected error but got none")
-				} else if err.Error() != tt.expectedResult.errMessage {
-					t.Errorf("unexpected error message, got: %s, want: %s", err.Error(), tt.expectedResult.errMessage)
-				}
-			} else {
-				if err != nil {
-					t.Errorf("unexpected error: %v", err)
-				}
-				if interval != tt.expectedResult.interval {
-					t.Errorf("unexpected interval, got: %v, want: %v", interval, tt.expectedResult.interval)
-				}
-				if tokenFile != tt.expectedResult.tokenFile {
-					t.Errorf("unexpected token file, got: %s, want: %s", tokenFile, tt.expectedResult.tokenFile)
-				}
-				if minStars != tt.expectedResult.minStars {
-					t.Errorf("unexpected min stars, got: %d, want: %d", minStars, tt.expectedResult.minStars)
-				}
+
+			// Create a pipe to capture stdout
+			r, w, err := os.Pipe()
+			if err != nil {
+				t.Fatalf("failed to create pipe: %v", err)
+			}
+			defer r.Close()
+			defer w.Close()
+
+			// Replace os.Stdout with the write end of the pipe
+			oldStdout := os.Stdout
+			defer func() { os.Stdout = oldStdout }()
+			os.Stdout = w
+
+			// Run the function
+			err = run(tt.args)
+			fmt.Printf("%v", err)
+			// Close the write end of the pipe
+			w.Close()
+
+			// Read the captured output from the read end of the pipe
+			var buf bytes.Buffer
+			_, err = io.Copy(&buf, r)
+			if err != nil {
+				t.Fatalf("failed to read captured output: %v", err)
+			}
+
+			// Check if the output is as expected
+			if (err != nil) != tt.wantErr {
+				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

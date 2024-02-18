@@ -21,7 +21,7 @@ var (
 
 var name = makeName()
 
-func parseArgs() (time.Duration, string, int, error) {
+func parseArgs(args []string) (time.Duration, string, int, error) {
 	/*
 	 * parseArgs parses the command-line arguments and returns the interval, token file path, and minimum stars.
 	 * It returns an error if the arguments are invalid.
@@ -42,7 +42,7 @@ func parseArgs() (time.Duration, string, int, error) {
 	set.SetOutput(io.Discard)
 
 	// Parse the arguments
-	args := args[2:]
+	args = args[2:]
 	if err := set.Parse(args); err != nil {
 		return 0, "", 0, errors.New("got invalid flags")
 	}
@@ -66,7 +66,7 @@ func log(message string) {
 
 func main() {
 	// Run the command
-	if err := run(); err != nil {
+	if err := run(args); err != nil {
 		message := err.Error()
 		log(message)
 		if _, ok := err.(usageError); ok {
@@ -94,7 +94,8 @@ func makeName() string {
 	return filepath.Base(path)
 }
 
-func run() error {
+func run(args []string) error {
+	fmt.Print(args)
 	if nbArgs := len(args); nbArgs < 2 {
 		return usageError{message: "missing command"}
 	}
@@ -123,7 +124,7 @@ Options:
 		// Set up context and other variables as needed
 		ctx := context.Background()
 		// Parse command-line arguments
-		interval, tokenFilePath, minStars, err := parseArgs()
+		interval, tokenFilePath, minStars, err := parseArgs(args)
 
 		// Check if there was an error parsing the arguments
 		if err != nil {
