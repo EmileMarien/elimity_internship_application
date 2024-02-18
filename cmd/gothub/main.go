@@ -70,24 +70,6 @@ func makeName() string {
 	return filepath.Base(path)
 }
 
-func printTableOutput(ctx context.Context) {
-	// Print table headers
-	fmt.Println("Owner\t| Name\t| Updated at (UTC)\t| Star count")
-	// Loop until context is cancelled
-	for {
-		select {
-		case <-ctx.Done():
-			// Exit loop if context is cancelled
-			return
-		default:
-			// Fetch repository details and print in table format
-			// You can implement this part based on your requirement and the Track function output
-			// For demonstration, I'm just sleeping here
-			time.Sleep(5 * time.Second)
-		}
-	}
-}
-
 func run() error {
 	if nbArgs := len(args); nbArgs < 2 {
 		return usageError{message: "missing command"}
