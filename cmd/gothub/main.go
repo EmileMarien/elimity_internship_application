@@ -6,7 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,30 +22,50 @@ var (
 var name = makeName()
 
 func parseArgs() (time.Duration, string, int, error) {
+	/*
+	 * parseArgs parses the command-line arguments and returns the interval, token file path, and minimum stars.
+	 * It returns an error if the arguments are invalid.
+	 * If the token file path is not provided, it returns an empty string for the token file path.
+	 * If the interval is not provided or less than or equal to zero, it returns an error.
+	 * If the minimum stars is not provided or below zero, it returns an error.
+	 */
+	// Create a new flag set
 	set := flag.NewFlagSet("", flag.ContinueOnError)
 	var interval time.Duration
 	var minStars int
 	var tokenFilePath string
 
+	// Set the flag set output to discard the default output
 	set.DurationVar(&interval, "interval", 10*time.Second, "")
 	set.IntVar(&minStars, "min-stars", 0, "minimum stars")
 	set.StringVar(&tokenFilePath, "tokenFile", "", "GitHub personal access token")
-	set.SetOutput(ioutil.Discard)
+	set.SetOutput(io.Discard)
 
+	// Parse the arguments
 	args := args[2:]
 	if err := set.Parse(args); err != nil {
 		return 0, "", 0, errors.New("got invalid flags")
 	}
+	// Check if the interval is valid
 	if interval <= 0 {
 		return 0, "", 0, errors.New("got invalid interval")
 	}
+	// Check if the minimum stars is valid
+	if minStars < 0 {
+		return 0, "", 0, errors.New("got invalid min-stars")
+	}
 	return interval, tokenFilePath, minStars, nil
 }
+
 func log(message string) {
+	/*
+	 * log prints the message to the standard error.
+	 */
 	fmt.Fprintf(os.Stderr, "%s: %s\n", name, message)
 }
 
 func main() {
+	// Run the command
 	if err := run(); err != nil {
 		message := err.Error()
 		log(message)
@@ -57,7 +77,11 @@ func main() {
 }
 
 func readTokenFromFile(filePath string) (string, error) {
-	token, err := ioutil.ReadFile(filePath)
+	/*
+	 * readTokenFromFile reads the GitHub personal access token from the provided file path.
+	 * It returns the token as a string and an error if the file cannot be read.
+	 */
+	token, err := os.ReadFile(filePath)
 	if err != nil {
 		return "", err
 	}

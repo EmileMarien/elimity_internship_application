@@ -65,7 +65,6 @@ func Track(ctx context.Context, interval time.Duration, token string, minStars i
 			// Get owner details or organization details if the owner is an organization
 			owner := repository.GetOwner().GetLogin()
 			if repository.GetOwner().GetType() == "Organization" {
-				fmt.Printf("org")
 				owner = repository.GetOrganization().GetLogin()
 			}
 
