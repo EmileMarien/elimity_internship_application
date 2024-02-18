@@ -1,6 +1,6 @@
 package main
 
-///Users/emile/Documents/github_token_EmileMarien.rtf
+///Users/emile/Documents/github_token_EmileMarien.txt
 import (
 	"context"
 	"errors"
@@ -31,6 +31,7 @@ func parseArgs() (time.Duration, string, int, error) {
 	set.IntVar(&minStars, "min-stars", 0, "minimum stars")
 	set.StringVar(&tokenFilePath, "tokenFile", "", "GitHub personal access token")
 	set.SetOutput(ioutil.Discard)
+
 	args := args[2:]
 	if err := set.Parse(args); err != nil {
 		return 0, "", 0, errors.New("got invalid flags")
@@ -42,46 +43,17 @@ func parseArgs() (time.Duration, string, int, error) {
 }
 func log(message string) {
 	fmt.Fprintf(os.Stderr, "%s: %s\n", name, message)
-	os.Exit(1)
 }
 
 func main() {
-	// Set up context and other variables as needed
-	ctx := context.Background()
-
-	// Parse command-line arguments
-	interval, tokenFilePath, minStars, err := parseArgs()
-	fmt.Fprintf(os.Stdout, "interval: %s\n", interval)
-	fmt.Fprintf(os.Stdout, "tokenFilePath: %s\n", tokenFilePath)
-	fmt.Fprintf(os.Stdout, "minStars: %d\n", minStars)
-
-	if err != nil {
-		log(fmt.Sprintf("Error parsing arguments: %v", err))
-		return
-	}
-	// Read token from file if needed
-
-	var token string
-	if tokenFilePath != "" { //Only read token from file if token file path is provided
-		token, err = readTokenFromFile(tokenFilePath)
-		if err != nil {
-			log(fmt.Sprintf("Error reading token from file: %v", err))
-			return
+	if err := run(); err != nil {
+		message := err.Error()
+		log(message)
+		if _, ok := err.(usageError); ok {
+			message := fmt.Sprintf("run '%s help' for usage information", name)
+			log(message)
 		}
-	} else {
-		token = ""
 	}
-
-	// Run the tracking function in a separate goroutine
-	go func() {
-		if err := run(ctx, interval, token, minStars); err != nil {
-			log(fmt.Sprintf("Error: %v", err))
-		}
-	}()
-
-	// Print table output
-	printTableOutput(ctx)
-
 }
 
 func readTokenFromFile(filePath string) (string, error) {
@@ -116,7 +88,7 @@ func printTableOutput(ctx context.Context) {
 	}
 }
 
-func run(ctx context.Context, interval time.Duration, tokenFilePath string, minStars int) error {
+func run() error {
 	if nbArgs := len(args); nbArgs < 2 {
 		return usageError{message: "missing command"}
 	}
@@ -142,8 +114,30 @@ Options:
 		return nil
 
 	case "track":
+		// Set up context and other variables as needed
+		ctx := context.Background()
+		// Parse command-line arguments
+		interval, tokenFilePath, minStars, err := parseArgs()
 
-		if err := internal.Track(ctx, interval, tokenFilePath, minStars); err != nil {
+		// Check if there was an error parsing the arguments
+		if err != nil {
+			message := fmt.Sprintf("failed parsing argument: %v", err)
+			return usageError{message: message}
+		}
+
+		// Read token from file if needed
+		token := ""
+		//Only read token from file if token file path is provided
+		if tokenFilePath != "" {
+			token, err = readTokenFromFile(tokenFilePath)
+			if err != nil {
+				message := fmt.Sprintf("Error reading token from file: %v", err)
+				return usageError{message: message}
+			}
+		}
+
+		// Track repositories
+		if err := internal.Track(ctx, interval, token, minStars); err != nil {
 			return fmt.Errorf("failed tracking: %v", err)
 		}
 		return nil
@@ -154,9 +148,15 @@ Options:
 }
 
 type usageError struct {
+	/*
+	 * usageError is an error type for usage errors.
+	 */
 	message string
 }
 
 func (e usageError) Error() string {
+	/*
+	 * Error returns the error message.
+	 */
 	return e.message
 }
