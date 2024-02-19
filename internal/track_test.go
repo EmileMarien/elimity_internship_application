@@ -21,14 +21,14 @@ func TestTrack(t *testing.T) {
 		{
 			name:      "Valid token and minimum stars",
 			interval:  1 * time.Second,
-			token:     "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",
+			token:     "",
 			minStars:  100,
 			wantError: false,
 		},
 		{
 			name:      "Valid token and no minimum stars",
 			interval:  1 * time.Second,
-			token:     "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",
+			token:     "",
 			minStars:  0,
 			wantError: false,
 		},
