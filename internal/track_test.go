@@ -44,7 +44,7 @@ func TestTrack(t *testing.T) {
 			// Check if the test case has exceeded its deadline
 			deadline, ok := t.Deadline()
 			if ok && deadline.Before(time.Now()) {
-				t.Skip("Test case exceeded deadline")
+				t.Skip("Test case exceeded deadline without errors")
 			}
 
 			// Call the Track function with the test case parameters
