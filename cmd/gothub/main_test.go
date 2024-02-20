@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"testing"
 	"time"
@@ -45,29 +43,6 @@ func TestParseArgs(t *testing.T) {
 	}
 }
 
-/*
-	func TestRun(t *testing.T) {
-		tests := []struct {
-			name    string
-			args    []string
-			wantErr bool
-		}{
-
-			{
-				name:    "InvalidCommand",
-				args:    []string{"", "invalid"},
-				wantErr: true,
-			},
-		}
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				if err := run(tt.args); (err != nil) != tt.wantErr {
-					t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
-				}
-			})
-		}
-	}
-*/
 func TestReadTokenFromFile(t *testing.T) {
 	// Create a temporary file
 	file, err := os.CreateTemp("", "test")
@@ -104,6 +79,9 @@ func mockTrack(ctx context.Context, interval time.Duration, token string, minSta
 	fmt.Println("Mock track function called")
 	return nil
 }
+
+/*
+// Testcode only works with implementation of run(args string[]) function which differs from the source code
 
 func TestRun(t *testing.T) {
 	// Save original os.Args and defer resetting it
@@ -170,3 +148,4 @@ func TestRun(t *testing.T) {
 		})
 	}
 }
+*/

@@ -66,7 +66,7 @@ func log(message string) {
 
 func main() {
 	// Run the command
-	if err := run(args); err != nil {
+	if err := run(); err != nil {
 		message := err.Error()
 		log(message)
 		if _, ok := err.(usageError); ok {
@@ -94,8 +94,7 @@ func makeName() string {
 	return filepath.Base(path)
 }
 
-func run(args []string) error {
-	fmt.Print(args)
+func run() error {
 	if nbArgs := len(args); nbArgs < 2 {
 		return usageError{message: "missing command"}
 	}

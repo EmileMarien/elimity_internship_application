@@ -27,7 +27,7 @@ func Track(ctx context.Context, interval time.Duration, token string, minStars i
 	// Print table headers
 	fmt.Println("Owner\t| Name\t| Updated at (UTC)\t| Star count")
 
-	// Map to keep track of printed repositories
+	// Map to keep track of printed repositories to prevent printing duplicates
 	printedRepositories := make(map[string]bool)
 
 	// Loop until context is cancelled
@@ -65,7 +65,7 @@ func Track(ctx context.Context, interval time.Duration, token string, minStars i
 			// Get owner details or organization details if the owner is an organization
 			owner := repository.GetOwner().GetLogin()
 			if repository.GetOwner().GetType() == "Organization" {
-				owner = repository.GetOrganization().GetLogin()
+				owner = repository.GetOwner().GetLogin() + " (org)"
 			}
 
 			// Get name, last updated time, and star count of the repository
